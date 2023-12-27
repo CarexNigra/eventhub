@@ -1,11 +1,14 @@
-from fastapi.testclient import TestClient
-from api.app import app
 import uuid
 
+from api.app import KAFKA_TOPIC
 
-client = TestClient(app)
 
-def test_post(kafka_producer_mock):
+def assert_kafka_produce(topic: str, event: str):
+    assert topic == KAFKA_TOPIC
+    assert len(event) > 0
+
+
+def test_post(client, kafka_producer_mock):
     response = client.post(
         "/store", 
         headers={"Content-type": "application/json"},
@@ -24,15 +27,15 @@ def test_post(kafka_producer_mock):
         }
     )
 
-    print("Rsp jsn", response.json())  # Print the entire response
+    # print("Rsp jsn", response.json())  # Print the entire response
 
     assert response.status_code == 204
     kafka_producer_mock.produce.assert_called_once()  # Check if produce method is called
-
+    assert_kafka_produce(**kafka_producer_mock.produce.call_args.kwargs)
 
 
 # BODY FORMAT / DATE-TIME
-def test_post_datetime_in_future(kafka_producer_mock):
+def test_post_datetime_in_future(client, kafka_producer_mock):
     response = client.post(
         "/store", 
         headers={"Content-type": "application/json"}, 
@@ -54,7 +57,7 @@ def test_post_datetime_in_future(kafka_producer_mock):
     kafka_producer_mock.produce.assert_not_called()  # Ensure produce method is not called
     
 
-def test_post_datetime_in_past(kafka_producer_mock):
+def test_post_datetime_in_past(client, kafka_producer_mock):
     response = client.post(
         "/store", 
         headers={"Content-type": "application/json"}, 
@@ -78,7 +81,7 @@ def test_post_datetime_in_past(kafka_producer_mock):
 
 
 # BODY FORMAT / MESSAGE ID
-def test_post_wrong_message_id_format(kafka_producer_mock):
+def test_post_wrong_message_id_format(client, kafka_producer_mock):
     response = client.post(
         "/store", 
         headers={"Content-type": "application/json"}, 
@@ -102,7 +105,7 @@ def test_post_wrong_message_id_format(kafka_producer_mock):
 
 
 # BODY FORMAT / EVENT NAME
-def test_post_wrong_event_name(kafka_producer_mock):
+def test_post_wrong_event_name(client, kafka_producer_mock):
     response = client.post(
         "/store", 
         headers={"Content-type": "application/json"}, 
@@ -122,7 +125,3 @@ def test_post_wrong_event_name(kafka_producer_mock):
     )
     assert response.status_code == 400
     kafka_producer_mock.produce.assert_not_called()  # Ensure produce method is not called
-
-
-
-
